@@ -32,6 +32,20 @@ const createSystemDeps = () => {
       getVersionStatus: vi.fn(async () => ({ ok: true, current: "1.2.3" })),
       updateOpenclaw: vi.fn(async () => ({ status: 200, body: { ok: true } })),
     },
+    alphaclawVersionService: {
+      readAlphaclawVersion: vi.fn(() => "0.1.5"),
+      getVersionStatus: vi.fn(async () => ({
+        ok: true,
+        currentVersion: "0.1.5",
+        latestVersion: "0.2.0",
+        hasUpdate: true,
+      })),
+      updateAlphaclaw: vi.fn(async () => ({
+        status: 200,
+        body: { ok: true, previousVersion: "0.1.5", restarting: true },
+      })),
+      restartProcess: vi.fn(),
+    },
     clawCmd: vi.fn(async () => ({ ok: true, stdout: "" })),
     restartGateway: vi.fn(),
     OPENCLAW_DIR: "/tmp/openclaw",
@@ -257,5 +271,76 @@ describe("server/routes/system", () => {
       expect.objectContaining({ mode: 0o644 }),
     );
     expect(res.body.ok).toBe(true);
+  });
+
+  it("returns alphaclaw version status on GET /api/alphaclaw/version", async () => {
+    const deps = createSystemDeps();
+    const app = createApp(deps);
+
+    const res = await request(app).get("/api/alphaclaw/version");
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      ok: true,
+      currentVersion: "0.1.5",
+      latestVersion: "0.2.0",
+      hasUpdate: true,
+    });
+    expect(deps.alphaclawVersionService.getVersionStatus).toHaveBeenCalledWith(false);
+  });
+
+  it("passes refresh flag to alphaclaw version service", async () => {
+    const deps = createSystemDeps();
+    const app = createApp(deps);
+
+    await request(app).get("/api/alphaclaw/version?refresh=1");
+
+    expect(deps.alphaclawVersionService.getVersionStatus).toHaveBeenCalledWith(true);
+  });
+
+  it("returns update result and schedules restart on POST /api/alphaclaw/update", async () => {
+    const deps = createSystemDeps();
+    const app = createApp(deps);
+
+    const res = await request(app).post("/api/alphaclaw/update");
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      ok: true,
+      previousVersion: "0.1.5",
+      restarting: true,
+    });
+    expect(deps.alphaclawVersionService.updateAlphaclaw).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns error status when alphaclaw update fails", async () => {
+    const deps = createSystemDeps();
+    deps.alphaclawVersionService.updateAlphaclaw.mockResolvedValue({
+      status: 500,
+      body: { ok: false, error: "npm install failed" },
+    });
+    const app = createApp(deps);
+
+    const res = await request(app).post("/api/alphaclaw/update");
+
+    expect(res.status).toBe(500);
+    expect(res.body).toEqual({ ok: false, error: "npm install failed" });
+  });
+
+  it("returns 409 when alphaclaw update is already in progress", async () => {
+    const deps = createSystemDeps();
+    deps.alphaclawVersionService.updateAlphaclaw.mockResolvedValue({
+      status: 409,
+      body: { ok: false, error: "AlphaClaw update already in progress" },
+    });
+    const app = createApp(deps);
+
+    const res = await request(app).post("/api/alphaclaw/update");
+
+    expect(res.status).toBe(409);
+    expect(res.body).toEqual({
+      ok: false,
+      error: "AlphaClaw update already in progress",
+    });
   });
 });

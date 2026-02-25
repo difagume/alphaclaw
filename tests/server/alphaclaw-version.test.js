@@ -1,0 +1,137 @@
+const childProcess = require("child_process");
+const fs = require("fs");
+const path = require("path");
+const https = require("https");
+const { EventEmitter } = require("events");
+
+const { kPackageRoot } = require("../../lib/server/constants");
+const modulePath = require.resolve("../../lib/server/alphaclaw-version");
+const originalExec = childProcess.exec;
+const originalSpawn = childProcess.spawn;
+const originalHttpsGet = https.get;
+
+const createMockHttpsGet = (responseJson) => {
+  return vi.fn((url, opts, callback) => {
+    const res = new EventEmitter();
+    res.statusCode = 200;
+    process.nextTick(() => {
+      res.emit("data", JSON.stringify(responseJson));
+      res.emit("end");
+    });
+    callback(res);
+    const req = new EventEmitter();
+    req.on = vi.fn().mockReturnThis();
+    return req;
+  });
+};
+
+const loadVersionModule = ({ execMock, spawnMock, httpsGetMock } = {}) => {
+  if (execMock) childProcess.exec = execMock;
+  if (spawnMock) childProcess.spawn = spawnMock;
+  if (httpsGetMock) https.get = httpsGetMock;
+  delete require.cache[modulePath];
+  return require(modulePath);
+};
+
+describe("server/alphaclaw-version", () => {
+  afterEach(() => {
+    childProcess.exec = originalExec;
+    childProcess.spawn = originalSpawn;
+    https.get = originalHttpsGet;
+    delete require.cache[modulePath];
+  });
+
+  it("reads current version from package.json", () => {
+    const { createAlphaclawVersionService } = loadVersionModule();
+    const service = createAlphaclawVersionService();
+    const version = service.readAlphaclawVersion();
+
+    const kNpmPackageRoot = path.resolve(kPackageRoot, "..");
+    const expectedPkg = JSON.parse(
+      fs.readFileSync(path.join(kNpmPackageRoot, "package.json"), "utf8"),
+    );
+    expect(version).toBe(expectedPkg.version);
+  });
+
+  it("returns version status and caches within TTL", async () => {
+    const httpsGetMock = createMockHttpsGet({
+      "dist-tags": { latest: "99.0.0" },
+    });
+    const { createAlphaclawVersionService } = loadVersionModule({ httpsGetMock });
+    const service = createAlphaclawVersionService();
+
+    const first = await service.getVersionStatus(false);
+    expect(first.ok).toBe(true);
+    expect(first.currentVersion).toBeTruthy();
+    expect(first.latestVersion).toBe("99.0.0");
+    expect(first.hasUpdate).toBe(true);
+
+    const second = await service.getVersionStatus(false);
+    expect(second.currentVersion).toBe(first.currentVersion);
+    expect(second.latestVersion).toBe("99.0.0");
+    // Should use cache — only one https.get call
+    expect(httpsGetMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns 409 while another update is in progress", async () => {
+    let installCallback = null;
+    const execMock = vi.fn().mockImplementation((cmd, opts, callback) => {
+      installCallback = callback;
+    });
+    const spawnMock = vi.fn().mockReturnValue({
+      unref: vi.fn(),
+    });
+    const { createAlphaclawVersionService } = loadVersionModule({ execMock, spawnMock });
+    const service = createAlphaclawVersionService();
+
+    const firstPromise = service.updateAlphaclaw();
+    await new Promise((resolve) => setImmediate(resolve));
+
+    const secondResult = await service.updateAlphaclaw();
+    expect(secondResult.status).toBe(409);
+    expect(secondResult.body).toEqual({
+      ok: false,
+      error: "AlphaClaw update already in progress",
+    });
+
+    installCallback(null, "installed", "");
+    await firstPromise;
+  });
+
+  it("returns successful update result with restarting flag", async () => {
+    const execMock = vi.fn().mockImplementation((cmd, opts, callback) => {
+      callback(null, "added 1 package", "");
+    });
+    const spawnMock = vi.fn().mockReturnValue({ unref: vi.fn() });
+    const { createAlphaclawVersionService } = loadVersionModule({ execMock, spawnMock });
+    const service = createAlphaclawVersionService();
+
+    const result = await service.updateAlphaclaw();
+
+    expect(result.status).toBe(200);
+    expect(result.body.ok).toBe(true);
+    expect(result.body.restarting).toBe(true);
+    expect(result.body.previousVersion).toBeTruthy();
+    expect(execMock).toHaveBeenCalledWith(
+      "npm install @chrysb/alphaclaw@latest --omit=dev --no-save --package-lock=false",
+      expect.objectContaining({
+        timeout: 180000,
+      }),
+      expect.any(Function),
+    );
+  });
+
+  it("returns 500 when npm install fails", async () => {
+    const execMock = vi.fn().mockImplementation((cmd, opts, callback) => {
+      callback(new Error("npm ERR! network timeout"), "", "npm ERR! network timeout");
+    });
+    const { createAlphaclawVersionService } = loadVersionModule({ execMock });
+    const service = createAlphaclawVersionService();
+
+    const result = await service.updateAlphaclaw();
+
+    expect(result.status).toBe(500);
+    expect(result.body.ok).toBe(false);
+    expect(result.body.error).toContain("npm ERR!");
+  });
+});
