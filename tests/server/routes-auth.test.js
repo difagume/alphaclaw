@@ -41,16 +41,15 @@ describe("server/routes/auth", () => {
     delete process.env.SETUP_PASSWORD;
   });
 
-  it("bypasses auth when setup password is unset", async () => {
+  it("returns 503 when setup password is unset", async () => {
     const { app, throttle } = createTestApp({ setupPassword: "" });
 
     const login = await request(app).post("/api/auth/login").send({ password: "any" });
-    expect(login.status).toBe(200);
-    expect(login.body).toEqual({ ok: true });
+    expect(login.status).toBe(503);
+    expect(login.body.ok).toBe(false);
 
     const protectedRes = await request(app).get("/api/protected");
-    expect(protectedRes.status).toBe(200);
-    expect(protectedRes.body).toEqual({ ok: true });
+    expect(protectedRes.status).toBe(503);
     expect(throttle.getClientKey).not.toHaveBeenCalled();
   });
 
@@ -79,7 +78,7 @@ describe("server/routes/auth", () => {
     expect(throttle.recordLoginFailure).toHaveBeenCalledTimes(1);
   });
 
-  it("sets auth cookie on success and allows protected API by token", async () => {
+  it("sets auth cookie on success and allows protected API by cookie", async () => {
     const { app, throttle } = createTestApp({ setupPassword: "secret" });
 
     const login = await request(app).post("/api/auth/login").send({ password: "secret" });
@@ -91,11 +90,22 @@ describe("server/routes/auth", () => {
     const setCookieHeader = login.headers["set-cookie"]?.[0] || "";
     const tokenMatch = setCookieHeader.match(/setup_token=([^;]+)/);
     expect(tokenMatch).toBeTruthy();
-    const token = tokenMatch[1];
-
-    const protectedRes = await request(app).get(`/api/protected?token=${token}`);
+    const cookie = setCookieHeader.split(";")[0];
+    const protectedRes = await request(app).get("/api/protected").set("Cookie", cookie);
     expect(protectedRes.status).toBe(200);
     expect(protectedRes.body).toEqual({ ok: true });
+  });
+
+  it("rejects query-string token auth", async () => {
+    const { app } = createTestApp({ setupPassword: "secret" });
+    const login = await request(app).post("/api/auth/login").send({ password: "secret" });
+    const setCookieHeader = login.headers["set-cookie"]?.[0] || "";
+    const tokenMatch = setCookieHeader.match(/setup_token=([^;]+)/);
+    expect(tokenMatch).toBeTruthy();
+
+    const protectedRes = await request(app).get(`/api/protected?token=${tokenMatch[1]}`);
+    expect(protectedRes.status).toBe(302);
+    expect(protectedRes.headers.location).toBe("/login.html");
   });
 
 });

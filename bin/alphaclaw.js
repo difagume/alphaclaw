@@ -154,6 +154,20 @@ if (fs.existsSync(envFilePath)) {
   console.log("[alphaclaw] Loaded .env");
 }
 
+const kSetupPassword = String(process.env.SETUP_PASSWORD || "").trim();
+if (!kSetupPassword) {
+  console.error(
+    [
+      "[alphaclaw] Fatal config error: SETUP_PASSWORD is missing or empty.",
+      "[alphaclaw] Set SETUP_PASSWORD in your deployment environment variables and restart.",
+      "[alphaclaw] Examples:",
+      "[alphaclaw] - Render: Dashboard -> Environment -> Add SETUP_PASSWORD",
+      "[alphaclaw] - Railway: Project -> Variables -> Add SETUP_PASSWORD",
+    ].join("\n"),
+  );
+  process.exit(1);
+}
+
 // ---------------------------------------------------------------------------
 // 7. Set OPENCLAW_HOME globally so all child processes inherit it
 // ---------------------------------------------------------------------------
