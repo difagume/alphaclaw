@@ -1,10 +1,15 @@
-# AlphaClaw
+<h1 align="center">AlphaClaw</h1>
 
-**Setup UI. Gateway manager. Watchdog. Zero config to production.**
-**One package. One command. Full OpenClaw infrastructure.**
+<p align="center">
+  <strong>Setup UI. Gateway manager. Watchdog. Zero config to production.</strong><br>
+  <strong>One package. One command. Full OpenClaw infrastructure.</strong>
+</p>
 
-[![npm version](https://img.shields.io/npm/v/@chrysb/alphaclaw)](https://www.npmjs.com/package/@chrysb/alphaclaw)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+<p align="center">
+  <a href="https://github.com/chrysb/alphaclaw/actions/workflows/ci.yml"><img src="https://github.com/chrysb/alphaclaw/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <a href="https://www.npmjs.com/package/@chrysb/alphaclaw"><img src="https://img.shields.io/npm/v/@chrysb/alphaclaw" alt="npm version" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT" /></a>
+</p>
 
 The management harness for [OpenClaw](https://github.com/openclaw/openclaw) — a web-based Setup UI, gateway lifecycle manager, crash watchdog, and channel orchestrator that turns a bare OpenClaw install into a production-ready deployment.
 
@@ -12,8 +17,10 @@ The management harness for [OpenClaw](https://github.com/openclaw/openclaw) — 
 1 command · Web dashboard · Crash recovery · Telegram/Discord/Google · Webhooks · Git sync
 ```
 
-[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/openclaw-fast-start?referralCode=jcFhp_&utm_medium=integration&utm_source=template&utm_campaign=generic)
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/chrysb/openclaw-render-template)
+<p align="center">
+  <a href="https://railway.com/deploy/openclaw-fast-start?referralCode=jcFhp_&utm_medium=integration&utm_source=template&utm_campaign=generic"><img src="https://railway.com/button.svg" alt="Deploy on Railway" /></a>
+  <a href="https://render.com/deploy?repo=https://github.com/chrysb/openclaw-render-template"><img src="https://render.com/images/deploy-to-render-button.svg" alt="Deploy to Render" /></a>
+</p>
 
 > **Platform:** AlphaClaw currently targets Docker/Linux deployments (Railway, Render, VPS). macOS local development is not yet supported.
 
@@ -46,8 +53,10 @@ The management harness for [OpenClaw](https://github.com/openclaw/openclaw) — 
 
 #### Deploy (recommended)
 
-[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/openclaw-fast-start?referralCode=jcFhp_&utm_medium=integration&utm_source=template&utm_campaign=generic)
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/chrysb/openclaw-render-template)
+<p align="center">
+  <a href="https://railway.com/deploy/openclaw-fast-start?referralCode=jcFhp_&utm_medium=integration&utm_source=template&utm_campaign=generic"><img src="https://railway.com/button.svg" alt="Deploy on Railway" /></a>
+  <a href="https://render.com/deploy?repo=https://github.com/chrysb/openclaw-render-template"><img src="https://render.com/images/deploy-to-render-button.svg" alt="Deploy to Render" /></a>
+</p>
 
 Set `SETUP_PASSWORD` at deploy time and visit your deployment URL. The welcome wizard handles the rest.
 
